@@ -3,7 +3,11 @@
 pacman::p_load(tm,slam,topicmodels,SnowballC,wordcloud,RColorBrewer,tidyverse, caret, corrplot, broom, 
                ggpubr, MASS,relaimpo, car, e1071,interplot,caTools,lubridate,date,stringi,ROCR,IRdisplay,
                knitr,data.table,dplyr,RColorBrewer,recosystem,softImpute,reshape2,BiocManager,MCRestimate,
+<<<<<<< HEAD
                recommenderlab,stringr,data.table)
+=======
+               recommenderlab,stringr)
+>>>>>>> be992cc8efab268eed570a549e028d4c75e63b8c
 
 #Update R
 # pacman::p_load(installr)
@@ -15,8 +19,13 @@ setwd("C:\\Dino\\NUS\\CapStone\\DataSet")
 #Load data
 #pacman::p_load(R.utils)
 #gunzip("assess_taged_new.gz", remove=FALSE)
+<<<<<<< HEAD
 ua_data = fread("assess_taged_new", sep = ",")
 us_data = fread("views_taged_new.csv", sep = ",")
+=======
+ua_data = read.csv("assess_taged_new")
+us_data = read.csv("views_taged_new.csv")
+>>>>>>> be992cc8efab268eed570a549e028d4c75e63b8c
 
 head(ua_data, 4)
 dim(ua_data)
@@ -28,6 +37,7 @@ ua_data$user_submit_d = substr(ua_data$submission_utc_ts, start = 1, stop = 10)
 ua_data$user_submit_d = as.Date(ua_data$user_submit_d, "%Y-%m-%d")
 
 #Get rid of unwanted colunmns
+<<<<<<< HEAD
 ua_data = subset(ua_data, select = -c(V1))
 
 #Are there any missing values..
@@ -46,6 +56,9 @@ ua_data = ua_data[duplicated(ua_data) == FALSE, ]  # Remove dups
 
 
 
+=======
+ua_data = subset(ua_data, select = -c(X))
+>>>>>>> be992cc8efab268eed570a549e028d4c75e63b8c
 
 #Roles and rows
 barplot(table(ua_data$role_id, useNA = "ifany"))
