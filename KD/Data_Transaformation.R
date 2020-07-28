@@ -1,6 +1,13 @@
 
 #Load packages
+<<<<<<< HEAD
 pacman::p_load(tidyverse,lubridate,date,stringi,data.table,dplyr,stringr)
+=======
+pacman::p_load(tm,slam,topicmodels,SnowballC,wordcloud,RColorBrewer,tidyverse, caret, corrplot, broom, 
+               ggpubr, MASS,relaimpo, car, e1071,interplot,caTools,lubridate,date,stringi,ROCR,IRdisplay,
+               knitr,data.table,dplyr,RColorBrewer,recosystem,softImpute,reshape2,BiocManager,
+               recommenderlab,stringr,data.table,recommenderlab,stringr)
+>>>>>>> ec9451b38f45becb7ae1c34be17345445d370715
 
 #Update R
 # pacman::p_load(installr)
@@ -12,6 +19,7 @@ setwd("C:\\Dino\\NUS\\CapStone\\DataSet")
 #Load data
 #pacman::p_load(R.utils)
 #gunzip("assess_taged_new.gz", remove=FALSE)
+<<<<<<< HEAD
 
 #ua_data = fread("assess_taged_new", sep = ",")
 stream_data = fread("views_taged_new.csv", sep = ",")
@@ -21,12 +29,49 @@ head(stream_data, 4)
 dim(stream_data)
 tail(stream_data, 4)
 str(stream_data)
+=======
+>>>>>>> ec9451b38f45becb7ae1c34be17345445d370715
 
+#ua_data = fread("assess_taged_new", sep = ",")
+stream_data = fread("views_taged_new.csv", sep = ",")
 
 #Remove unwanted data
 #stream_data = us_data %>% select(user_id = masked_user_id, login_type = login_handle_type,  role_id, lang_code, country, city, user_since = user_since_d, stream_id = deck_id, tag1 = stream_tags, tag2 = stream_tags2, user_activity_date = user_action_d, user_action_timestamp, activity_type, client_type, app_version_id)
 stream_data1 = subset(stream_data, select = -c(V1,card_id,action,app_version_id,client_type,city,login_handle_type))
 
+head(stream_data, 4)
+dim(stream_data)
+tail(stream_data, 4)
+str(stream_data)
+
+#Convert to Date
+stream_data1$user_action_d = substr(stream_data1$user_action_timestamp, start = 1, stop = 10)
+stream_data1$user_action_d = as.Date(stream_data1$user_action_d, "%Y-%m-%d")
+
+<<<<<<< HEAD
+stream_data1$user_since_d = substr(stream_data1$user_since, start = 1, stop = 10)
+stream_data1$user_since_d = as.Date(stream_data1$user_since_d, "%Y-%m-%d")
+
+#drop datatimecolumns
+stream_data1 = subset(stream_data1, select = -c(user_action_timestamp,user_since))
+
+#Tidy-up names to match with presentation
+stream_data1 = rename(stream_data1, stream_id = deck_id, user_id = masked_user_id, tag1 = stream_tags, tag2 = stream_tags2, 
+                      activity_date = user_action_d, user_since_date = user_since_d)
+
+#Are there any duplicated data
+stream_data1[duplicated(stream_data1) == TRUE, ] # 1 record
+stream_data1 = stream_data1[duplicated(stream_data1) == FALSE, ]  # Remove dups
+
+=======
+#Remove unwanted data
+#stream_data = us_data %>% select(user_id = masked_user_id, login_type = login_handle_type,  role_id, lang_code, country, city, user_since = user_since_d, stream_id = deck_id, tag1 = stream_tags, tag2 = stream_tags2, user_activity_date = user_action_d, user_action_timestamp, activity_type, client_type, app_version_id)
+stream_data1 = subset(stream_data, select = -c(V1,card_id,action,app_version_id,client_type,city,login_handle_type))
+
+
+#Factorize
+cols = c('action', 'country','lang_code','role_id','client_type')
+stream_data[,cols] = lapply(stream_data[,cols], factor)
 
 #Convert to Date
 stream_data1$user_action_d = substr(stream_data1$user_action_timestamp, start = 1, stop = 10)
@@ -46,6 +91,7 @@ stream_data1 = rename(stream_data1, stream_id = deck_id, user_id = masked_user_i
 stream_data1[duplicated(stream_data1) == TRUE, ] # 1 record
 stream_data1 = stream_data1[duplicated(stream_data1) == FALSE, ]  # Remove dups
 
+>>>>>>> ec9451b38f45becb7ae1c34be17345445d370715
 #Are there any missing values..
 sapply(stream_data1, function(col) sum(is.na(col))) 
 
@@ -79,7 +125,11 @@ length(unique(stream_data1$tag1)); length(unique(stream_data1$tag2)); length(uni
 table(unique(substr(stream_data1$tag1, start = 1, stop = 3)));table(unique(substr(stream_data1$tag2, start = 1, stop = 3))) #all tags
 
 #Users per tag 
+<<<<<<< HEAD
 hist(table(stream_data1$tag1)) # uniformly distributed
+=======
+boxplot(table(stream_data1$tag1)) # uniformly distributed
+>>>>>>> ec9451b38f45becb7ae1c34be17345445d370715
 
 #Are datatypes correct?
 str(stream_data1)
