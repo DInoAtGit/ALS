@@ -1,17 +1,16 @@
 
 
 #Load packages
-pacman::p_load(tm,slam,topicmodels,SnowballC,wordcloud,RColorBrewer,tidyverse, caret, corrplot, broom, ggpubr, MASS,relaimpo, car, e1071,interplot,caTools,lubridate,date,stringi,ROCR,IRdisplay,knitr,data.table,dplyr,RColorBrewer)
-pacman::p_load(recosystem,softImpute,reshape2)
-pacman::p_load(BiocManager,MCRestimate)
-pacman::p_load(recommenderlab,stringr)
+pacman::p_load(tm,slam,topicmodels,SnowballC,wordcloud,RColorBrewer,tidyverse, caret, corrplot, broom, ggpubr, 
+               MASS,relaimpo, car, e1071,interplot,caTools,lubridate,date,stringi,ROCR,IRdisplay,knitr,
+               data.table,dplyr,RColorBrewer,recosystem,softImpute,reshape2,recommenderlab,stringr,BiocManager)
 
 #Update R
 # pacman::p_load(installr)
 # updateR()
 
 #Set the directory
-setwd("C:\\Dino\\Git\\ILS\\ILS\\Data")
+setwd("C:\\Dino\\NUS\\CapStone\\DataSet")
 
 #Load data
 #pacman::p_load(R.utils)
