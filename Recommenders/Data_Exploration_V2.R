@@ -217,7 +217,7 @@ stream_data3 = merge(stream_data1, stream_data5[,c("stream_id","country","questi
 
 stream_data6 = merge(stream_data, stream_data5[,c("deck_id","country","question_tags","tag1","tag2","tag3")], by = c("deck_id","country"))
 
-question_data6 = merge(stream_data, stream_data5[,c("deck_id","country","question_tags","tag1","tag2","tag3")], by = c("deck_id","country"))
+question_data6 = merge(question_data, question_data5[,c("question_tags","country","tag1","tag2","tag3")], by = c("question_tags","country"))
 
 head(question_data,4)
 
@@ -237,4 +237,8 @@ stream_data6[stream_data6$question_tags == "tag-4db5b3ba",]
 question_data[question_data$question_tags == "tag-4db5b3ba",]
 
 write.csv(stream_data6, "views_model_withtags.csv")
+write.csv(question_data6, "user_assessments_withtags.csv")
 
+
+save(stream_data6, file="views_model_withtags.RData")
+save(question_data6, file="user_assessments_withtags.RData")
