@@ -14,10 +14,13 @@ pacman::p_load(tidyverse,lubridate,date,stringi,data.table,dplyr,stringr)
 setwd("C:\\Dino\\NUS\\CapStone\\DataSet")
 
 #Load data
-stream_data = fread("views_taged_new.csv", sep = ",")
+load("views_model_with_tags.RData")
+dim(stream_data4)
+stream_data = stream_data4; rm(stream_data4)
+head(stream_data)
 
 #Remove unwanted data
-stream_data1 = subset(stream_data, select = -c(V1,card_id,action,app_version_id,client_type,city,login_handle_type))
+stream_data1 = subset(stream_data, select = -c(card_id,action,app_version_id,client_type,city,login_handle_type))
 
 
 #Convert to Date
@@ -31,14 +34,13 @@ stream_data1$user_since_d = as.Date(stream_data1$user_since_d, "%Y-%m-%d")
 stream_data1 = subset(stream_data1, select = -c(user_action_timestamp,user_since))
 
 #Tidy-up names to match with presentation
-stream_data1 = rename(stream_data1, stream_id = deck_id, user_id = masked_user_id, tag1 = stream_tags, tag2 = stream_tags2, 
-                      activity_date = user_action_d, user_since_date = user_since_d)
+stream_data1 = rename(stream_data1, stream_id = deck_id, activity_date = user_action_d, user_since_date = user_since_d)
 
 #Are there any duplicated data
 stream_data1 = stream_data1[duplicated(stream_data1) == FALSE, ]  # Remove dups
 
 #Are datatypes correct?
-cols = c('country','lang_code','role_id','tag1', 'tag2')
+cols = c('country','lang_code','role_id','tag1', 'tag2','tag3','tag4','tag5','tag6','tag7')
 stream_data1[,(cols):=lapply(.SD, as.factor),.SDcols=cols]
 head(stream_data1, 4)
 

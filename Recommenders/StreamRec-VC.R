@@ -15,7 +15,10 @@ setwd("C:\\Dino\\NUS\\CapStone\\DataSet")
 #Load data
 #pacman::p_load(R.utils)
 #gunzip("views_model.gz", remove=FALSE)
-activity_data = read.csv("views_model")
+#activity_data = read.csv("views_model")
+load("views_model_with_tags.RData")
+dim(stream_data4)
+activity_data = stream_data4; rm(stream_data4)
 
 #Explore
 head(activity_data, 4)
@@ -24,7 +27,7 @@ str(activity_data)
 
 
 #Factorize
-cols = c('action', 'country','lang_code','role_id','client_type')
+cols = c('action', 'country','lang_code','role_id','client_type','tag1','tag2','tag3','tag4','tag5','tag6','tag7')
 activity_data[,cols] = lapply(activity_data[,cols], factor)
 
 #Convert to Date
@@ -136,6 +139,7 @@ deck_view %>% group_by(deck_id) %>% summarise(avg_vc = mean(vc)) %>%
   
   #You may be interested in (Similar Items) - Covers longtail as it doesn't scope to role.
   getrecommendations_II(target, itemsimsE, topN=10)
+  
   
   #People also viewed (Similar Users) 
   target_latest_active_d = activity_data_t %>% filter(user_id == LoginUser) %>% summarise(latest=max(user_since_d))
