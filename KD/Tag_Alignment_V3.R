@@ -119,3 +119,8 @@ load("views_model_with_tags.RData")
 
 dim(question_data);dim(question_data6)
 dim(stream_data);dim(stream_data4)
+head(stream_data4)
+
+
+load("views_model_with_tags.RData")
+dim(stream_data4)
