@@ -39,6 +39,7 @@ head(question_data2)
 
 #Save Question Master
 save(question_data2, file="Master\\Question_Master.RData")
+load("Master\\Question_Master.RData")
 
 #Extract specific country data - Ex: IR data
 question_data3 = question_data2[question_data2$country == 'IR',]
