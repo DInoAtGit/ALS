@@ -1,10 +1,11 @@
 #Load packages
 pacman::p_load(tidyverse,lubridate,date,stringi,data.table,dplyr,stringr,magrittr,tm,wordcloud,RColorBrewer,recosystem,
-               topicmodels,SnowballC,lsa)
+               topicmodels,SnowballC,lsa,slam,proxy,rjson)
+
 
 #Source Libraries
-source("C:\\Dino\\NUS\\Sem2\\RS\\Workshop Files\\day1\\CF-demolib-v3.R")
-source("C:\\Dino\\NUS\\Sem2\\RS\\Workshop Files\\day3\\CF-demolib-implict-v2.R")
+# source("C:\\Dino\\NUS\\Sem2\\RS\\Workshop Files\\day1\\CF-demolib-v3.R")
+# source("C:\\Dino\\NUS\\Sem2\\RS\\Workshop Files\\day3\\CF-demolib-implict-v2.R")
 
 
 #Set the directory
@@ -24,6 +25,16 @@ head(stream_data4, 4)
 question_data = question_data6[question_data6$country == 'GB',]
 stream_data = stream_data4[stream_data4$country == 'GB',]
 rm(question_data6,stream_data4)
+
+#Combine all tags for feature matrix
+question_data$all_tags = paste0(question_data$tag1," ",
+                                question_data$tag2," ",
+                                question_data$tag3," ",
+                                question_data$tag4," ",
+                                question_data$tag5," ",
+                                question_data$tag6," ",
+                                question_data$tag7)
+
 
 #How roles are:
 table(question_data$role_id)
@@ -59,7 +70,7 @@ rm(question_tags,corpusQTagsdtm,tagnames,corpusQTags,QTagsMat)
 question_master = unique(question_data[,c(1,9:15)])
 sapply(question_master, function(col) sum(is.na(col)))
 apply(question_master, 2, function(x) length(unique(x)))
-question_master[duplicated(question_master1) == TRUE, ]
+question_master[duplicated(question_master) == TRUE, ]
 question_master$all_tags = paste0(question_master$tag1," ",
                                    question_master$tag2," ",
                                    question_master$tag3," ",
@@ -96,15 +107,16 @@ dt <- cbind(question_id = question_master$question_id, dt);dt[1:2,1:20]
       }
       
       recQst(sim_mat_cos, 283, 2)
-      question_master[question_master$question_id %in% c(7,11,24871),]
+      question_master[question_master$question_id %in% c(16064,11000,16062),]
       question_master[question_master$tag1 == 'tag-13b3f31a' & question_master$tag2 == 'tag-ce9cc2e6',]
 
 
 # new user will input a role_id and some tags   (For existing user, get latest role_id from user master & pref_tag from best scores - Strength)
+LoggedInUser = 'Dinakar' #'019d90f6'
 role <- 1
 strength_tags <- c("electronics","computers", "audio", "video") %>% tolower  #CB Matrix
-topNQs = 100 #Number of related - desc
-serendipityNum = 20 #Numer of non-related
+topNQs = 100 #Number of related question data
+serendipityNum = 20 #Numer of non-related question data
 
 #create a new binary matrix to filter out relevant Tags based on user-strength tags
 newMat <- data.table("USER STENGTHS" , matrix(0, nrow = 1, ncol = ncol(dt)-1)) ; newMat[1:2,1:10];dt[1:2,1:10]
@@ -118,11 +130,16 @@ choiceUniverse <- data.table(question_id = dt$question_id, dist = distances) %>%
 question_master[question_master$question_id %in% c(3891,10238,14386) ,]
 
 #Get role associated assessment data
-if (<new user>){
+if (!(LoggedInUser %in% question_data[question_data$masked_user_id == LoggedInUser,]$masked_user_id)) {
   question_data_sub = question_data[question_data$role_id == role,]
 }else {
-  question_data_sub = question_data[question_data$masked_user_id == <user_id>,]
+  question_data_sub = question_data[question_data$masked_user_id == LoggedInUser,]
+  temp_tags = question_data_sub %>% group_by(all_tags) %>% 
+    summarise(score = sum(points_earned)) %>% filter(score >= 10) %$% all_tags
+  temp_tags_1 =  data.frame(tags = unlist(strsplit(temp_tags, " ")))
+  strength_tags = unique(temp_tags_1[temp_tags_1$tags != 'NA',])
 }
+
 
 #Role + Strength Tags fileterd question data
 question_data_sub_2 <- question_data_sub[question_data_sub$question_id %in% c(choiceUniverse$question_id),]
@@ -184,6 +201,7 @@ reco <- Reco()
 reco$train(data_memory(user_index = ratingsMatrixTrain$user, item_index = ratingsMatrixTrain$item, rating = ratingsMatrixTrain$ratings),
            opts = c(dim = 10, costp_12 = 0.1, costq_12 = 0.1, lrate = 0.08, niter = 50))
 
+#predict for a highly active user
 closestUser_Index <- rep(which(levels(ratingsMatrixTrain$user) == closestUserCF), each = uniqItems)
 pred <- reco$predict(data_memory(closestUser_Index, 1:uniqItems), out_memory())
 tempfinalReco <- data.table(question_id = unique(ratingsMatrixTrain$item), scores = pred)
@@ -192,92 +210,20 @@ CFrecommended = merge(tempfinalReco, question_data_sub_2, by.x = "question_id", 
 head(CFrecommended,10)
 
 
+#Predict for a given user 
 closestUser_Index <- rep(which(levels(ratingsMatrixTrain$user) == '019d90f6'), each = uniqItems)
 pred <- reco$predict(data_memory(closestUser_Index, 1:uniqItems), out_memory())
 tempfinalReco <- data.table(question_id = unique(ratingsMatrixTrain$item), scores = pred)
-question_data_sub_2$question_id = as.factor(question_data_sub_2$question_id)
-CFrecommended = merge(tempfinalReco, question_data_sub_2, by.x = "question_id", by.y = "question_id", all.x = T) %>% select(question_id = question_id, PredScore = scores, 10:16) %>% arrange(-PredScore) %>% distinct()
+question_data_sub_3$question_id = as.factor(question_data_sub_3$question_id)
+CFrecommended = merge(tempfinalReco, question_data_sub_3, by.x = "question_id", by.y = "question_id", all.x = T) %>% select(question_id = question_id, PredScore = scores, 8,10:16) %>% arrange(-PredScore) %>% distinct()
 head(CFrecommended,10)
 
-question_data[question_data$masked_user_id == '743d0324',]
-#(3 apparel, 2 - appliances, 1 sport,tag-e34b589d,tag-753e99cd)
-ratingsMatrixTrain[599,]
+#verification
 ratingsMatrixTrain[ratingsMatrixTrain$user == '019d90f6',]
-question_data_sub_3[question_data_sub_3$masked_user_id == '019d90f6',]
-
+question_data_sub_3[question_data_sub_3$masked_user_id == '019d90f6' & question_data_sub_3$question_id %in% c(CFrecommended$question_id),]
 question_data_sub_3 %>% group_by(masked_user_id) %>% summarise(score = sum(points_earned)) 
-
-#Unique streams with tags
-stream_master = unique(stream_data4[,c(1,14:20)])
-sapply(stream_master, function(col) sum(is.na(col))) 
-stream_master %<>% select(-tag2, -tag3, -tag4, -tag7)
-stream_master$all_desc_tags = paste0(stream_master$tag5," ",stream_master$tag6)
-
-# Tag Data Exploration --> we can outut some possible choices that user can choose from ?
-categories <- gsub(" ", "-",stream_master$all_desc_tags)
-categories <- gsub(";", " ",categories)
-categories <- gsub("/", " ",categories)
-categories <- gsub("-&-", "&",categories)
-categoriesdt <- data.table(name = stream_master$deck_id, categories = categories)
-corpusCat <- Corpus(VectorSource(categoriesdt$categories))
-corpusCatdtm <- DocumentTermMatrix(corpusCat, control = list(weighting = weightTfIdf))
-catsMat <- as.matrix(corpusCatdtm);catsMat[1:5,1:5]
-cats <- colnames(catsMat)
-sort(colSums(catsMat), decreasing = T) %>% head
-wordcloud(cats, colSums(catsMat), colors=dark2 <- brewer.pal(6, "Dark2"), random.order = F, max.words = 100)
+question_data[question_data$masked_user_id == '019d90f6',]
 
 
-#Unique values 
-length(unique(question_data6[question_data6$country %in% c(cntry_lst),]$masked_user_id)) # Unique Users - 27473
-length(unique(question_data6[question_data6$country %in% c(cntry_lst),]$question_id)) # Unique Questions  - 8047
-length(unique(stream_data4[stream_data4$country %in% c(cntry_lst),]$deck_id)) # Unique streams  - 2754
-
-
-#Question take-up rate per country
-
-question_data6[question_data6$country %in% c(cntry_lst),] %>%
-  group_by(country) %>% 
-  summarise(q_count = length(unique(question_id)),
-            u_count = length(unique(masked_user_id)),
-            q_rate = length(unique(question_id))/length(unique(masked_user_id)))
-
-# Userbase per country
-question_data6[question_data6$country %in% c(cntry_lst),] %>%
-  group_by(country) %>% summarise(q_count = length(unique(question_id)),
-                                  u_count = length(unique(masked_user_id))) %>%
-  ggplot(aes(x = reorder(country, -u_count),
-             y = u_count,
-             fill = u_count)) +
-  geom_bar(stat = 'identity',  position = 'dodge')
-
-# Questions per country
-question_data6[question_data6$country %in% c(cntry_lst),] %>%
-  group_by(country) %>% summarise(q_count = length(unique(question_id)),
-                                  u_count = length(unique(masked_user_id))) %>%
-  ggplot(aes(x = reorder(country, -q_count),
-             y = q_count,
-             fill = q_count)) +
-  geom_bar(stat = 'identity',  position = 'dodge')
-
-
-
-#Mean number of questions tried/attempted in each country
-question_data6[question_data6$country %in% c(cntry_lst),] %>%
-  group_by(country) %>% summarise(mean_trials = mean(no_of_trials), mean_points = mean(points_earned)) %>%
-  #top_n(10, wt = mean_trials) %>%
-  ggplot(aes(x = reorder(country, -mean_trials),
-             y = mean_trials,
-             fill = mean_trials)) +
-  geom_bar(stat = 'identity',  position = 'dodge')
-
-#Mean number of questions answered in each country
-question_data6[question_data6$country %in% c(cntry_lst),]  %>%
-  group_by(country) %>% 
-  summarise(mean_trials = mean(no_of_trials), mean_points = mean(points_earned)) %>%
-  #top_n(10, wt = mean_points) %>%
-  ggplot(aes(x = reorder(country, -mean_points),
-             y = mean_points,
-             fill = mean_points)) +
-  geom_bar(stat = 'identity')
 
 
