@@ -14,9 +14,9 @@ str(stream_data)
 stream_data$user_action_d = as.Date(stream_data$user_action_timestamp, "%Y-%m-%d")
 
 #Capture Logged in User
-LoginUser = "97d0a65c"
+LoginUser = "019d90f6"
 LoginUserRole = 1
-LoginCntry = "IN"
+LoginCntry = "GB"
 
 #Get Most recent Country Code for the User from Stream or Question Activity
 UserStreamCntry = as.data.table(stream_data[stream_data$masked_user_id == LoginUser,] %>% group_by(country) %>% summarise(recent = max(user_action_d)))
@@ -42,7 +42,6 @@ target_u = users[LoginUser, ]
 
 # Build sim matrix
 itemsims = getitemsimsmatrix(users, simfun=jacardsim)  
-
 
 # Function to format & return recommendataions
 FormatRec = function(recommendations, question_master, stream_master, Cntry) {
