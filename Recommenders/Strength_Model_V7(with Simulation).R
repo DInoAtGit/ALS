@@ -30,7 +30,7 @@ question_data$all_tags = paste0(question_data$tag1," ",
                                 question_data$tag6," ",
                                 question_data$tag7)
 
-#Confirmatory Checks - Start
+    #Confirmatory Checks - Start
     #How roles are:
     table(question_data$role_id)
     
@@ -60,7 +60,7 @@ question_data$all_tags = paste0(question_data$tag1," ",
     sort(colSums(QTagsMat), decreasing = T) %>% head
     wordcloud(tagnames, colSums(QTagsMat), colors=dark2 <- brewer.pal(6, "Dark2"), random.order = F, max.words = 100)
     rm(question_tags,corpusQTagsdtm,tagnames,corpusQTags,QTagsMat)
-#Confirmatory Checks - End
+    #Confirmatory Checks - End
 
 #Build Question-Tag feature matrix
 question_master = unique(question_data[,c(1,9:15)])
@@ -84,7 +84,7 @@ dt <- cbind(question_id = question_master$question_id, dt);dt[1:2,1:20]
 #save(dt, file = "dt.RData")
 
 
-#Confirmatory Checks - Start
+    #Confirmatory Checks - Start
     #Verify if cosine similarity returns right set of questions based on feature matrix
     sim_mat_cos <- crossprod_simple_triplet_matrix(t(dtm))/(sqrt(col_sums(t(dtm)^2) %*% t(col_sums(t(dtm)^2))))
     as.matrix(sim_mat_cos)[1:5, 1:10]
@@ -109,13 +109,14 @@ dt <- cbind(question_id = question_master$question_id, dt);dt[1:2,1:20]
     recQst(sim_mat_cos, 283, 2)
     question_master[question_master$question_id %in% c(14516,16454),]
     question_master[question_master$tag1 == 'tag-13b3f31a' & question_master$tag2 == 'tag-ce9cc2e6',]
-#Confirmatory Checks - End
+    #Confirmatory Checks - End
 
 # new user will input a role_id and some tags   (For existing user, get latest role_id from user master & pref_tag from best scores - Strength)
 LoggedInUser = '019d90f6'   #'6dcababc'
 role <- 1
 strength_tags <- c("electronics","computers", "audio", "video") %>% tolower  #CB Matrix
 topNQs = 100 #Number of related question data
+serQs = 5
 
 #Check if user exists - Yes: get his activity data, Else, get his role associated assessment data
 if (!(LoggedInUser %in% question_data[question_data$masked_user_id == LoggedInUser,]$masked_user_id)) {
@@ -123,7 +124,7 @@ if (!(LoggedInUser %in% question_data[question_data$masked_user_id == LoggedInUs
 }else {
   question_data_sub = question_data[question_data$masked_user_id == LoggedInUser,]
   temp_tags = question_data_sub %>% group_by(all_tags) %>% 
-    summarise(score = sum(points_earned)) %>% filter(score >= 10) %$% all_tags
+    summarise(score = sum(points_earned)) %>% filter(score >= 10) %>% head(10) %$% all_tags
   temp_tags_1 =  data.frame(tags = unlist(strsplit(temp_tags, " ")))
   strength_tags = unique(temp_tags_1[temp_tags_1$tags != 'NA',])
 }
@@ -141,6 +142,11 @@ distances <- c(dist(newMat, as.data.frame(dt)[, strength_tags], method = "cosine
 choiceUniverse <- data.table(question_id = dt$question_id, dist = distances) %>% arrange(dist) %>% as.data.table %>% head(topNQs)
 #question_master[question_master$question_id %in% c(2849,10236),];choiceUniverse[choiceUniverse$question_id %in% c(2849,2851,14516),]
 
+# Introduce user to new tags randomly
+ser_qlist <- question_data %>% dplyr::filter(!question_id %in% choiceUniverse$question_id) %$% question_id %>% unique
+ser_questions <- question_data %>% dplyr::filter(question_id %in% sample(ser_qlist, serQs))
+
+
 #Role + Strength Tags fileterd question data - ANd if the user is not present, get the best user for those tags.
 if (!(LoggedInUser %in% question_data[question_data$masked_user_id == LoggedInUser,]$masked_user_id)) {
   question_data_sub_2 <- merge(question_data, choiceUniverse, by.x = "question_id", by.y = "question_id", all.y = T)
@@ -148,15 +154,17 @@ if (!(LoggedInUser %in% question_data[question_data$masked_user_id == LoggedInUs
   closestUserCF <- closestUser[1] 
 }else {
   question_data_sub_2 <- merge(question_data, choiceUniverse, by.x = "question_id", by.y = "question_id", all.y = T)#Already answered + to be answered
+  ser_questions$dist =  max(question_data_sub_2$dist) + (1/100)
+  question_data_sub_2 = rbind(question_data_sub_2, ser_questions)
 }
 
-head(unique(question_data_sub_2[,c(1,2,8:15,17)]),4)
-head(question_data_sub_2,4)
 
-question_data_sub_2[question_data_sub_2$masked_user_id == LoggedInUser,]
-question_data[question_data$masked_user_id == LoggedInUser,]
-trainset[trainset$user == LoggedInUser,]
-testset[testset$user == LoggedInUser,]
+# head(unique(question_data_sub_2[,c(1,2,8:15,17)]),4)
+# head(question_data_sub_2,4)
+# question_data_sub_2[question_data_sub_2$masked_user_id == LoggedInUser,]
+# question_data[question_data$masked_user_id == LoggedInUser,]
+# trainset[trainset$user == LoggedInUser,]
+# testset[testset$user == LoggedInUser,]
 
 
 # question_data_sub_3 = question_data_sub_2
@@ -223,19 +231,107 @@ if (!(LoggedInUser %in% question_data[question_data$masked_user_id == LoggedInUs
   head(CFrecommended,50);strength_tags
 }
 
+#For Shiny GUI
+head(ratingsMatrixTrain, 100)
+table(ratingsMatrixTrain$ratings)
+ratingsMatrixTrain[ratingsMatrixTrain$ratings >= 4.140393,] %>% arrange(ratings)
+Demo_user_list = c('8a54a7e8','9bffe329','fa2f968d','4ffee38a','56888f9f','67d028d2')
+closestUser_Index <- rep(which(levels(ratingsMatrixTrain$user) == LoggedInUser), each = uniqItems)
+pred <- reco$predict(data_memory(closestUser_Index, 1:uniqItems), out_memory())
+tempfinalReco <- data.table(question_id = unique(ratingsMatrixTrain$item), scores = pred)
+question_data_sub_2$question_id = as.factor(question_data_sub_2$question_id)
+CFrecommended = merge(tempfinalReco, question_data_sub_2, by.x = "question_id", by.y = "question_id", all.x = T) %>% select(question_id = question_id, PredScore = scores, 10:16) %>% arrange(-PredScore) %>% distinct()
+temp = head(CFrecommended,50) %>% as.data.table
+temp$user_id = LoggedInUser
+temp2 = temp %>% select(user_id = user_id, question_id = question_id, score = PredScore)
+stregth_sample_recommendataions = rbind(stregth_sample_recommendataions, temp2)
+LoggedInUser = '9bffe329'
+table(stregth_sample_recommendataions$user_id)
+stregth_sample_recommendataions = stregth_sample_recommendataions[!stregth_sample_recommendataions$user_id == '56888f9f', ]
+save(stregth_sample_recommendataions, file = "strength_recommen.Rds")
 
-#Simulation
-rec_first = CFrecommended
-rec_first[rec_first$question_id %in% c(2856,10131,10303,12882),]
-data_first = question_data_sub_2[question_data_sub_2$masked_user_id == LoggedInUser,]
-round_one_strength = as.data.frame(question_data_sub %>% group_by(all_tags) %>%  summarise(score = sum(points_earned)) %>% filter(score >= 10))
-simulation_1 = head(question_data[question_data$question_id %in% c(2856),],1)
-simulation_1 = rbind(simulation_1, head(question_data[question_data$question_id %in% c(10131),],1))
-simulation_1 = rbind(simulation_1, head(question_data[question_data$question_id %in% c(10303),],1))
-simulation_1 = rbind(simulation_1, head(question_data[question_data$question_id %in% c(12882),],1))
-simulation_1$masked_user_id = LoggedInUser
-simulation_1$submission_utc_ts = '2019-12-15 08:43:15.000'
-question_data = rbind(question_data, simulation_1)
+#Simulation - Hold first round recommendataions
+Demo_user_list = c('8a54a7e8','9bffe329','fa2f968d','4ffee38a','56888f9f','67d028d2')
+CFrecommended$user_id = LoggedInUser
+roundone_rec = CFrecommended[CFrecommended$question_id == 000,]
+for (usr in Demo_user_list){ #usr = '8a54a7e8'
+  closestUser_Index <- rep(which(levels(ratingsMatrixTrain$user) == usr), each = uniqItems)
+  pred <- reco$predict(data_memory(closestUser_Index, 1:uniqItems), out_memory())
+  tempfinalReco <- data.table(question_id = unique(ratingsMatrixTrain$item), scores = pred)
+  question_data_sub_2$question_id = as.factor(question_data_sub_2$question_id)
+  CFrecommended = merge(tempfinalReco, question_data_sub_2, by.x = "question_id", by.y = "question_id", all.x = T) %>% select(question_id = question_id, PredScore = scores, 10:16) %>% arrange(-PredScore) %>% distinct()
+  temp = as.data.table(CFrecommended)
+  temp$user_id = usr
+  roundone_rec = rbind(roundone_rec, temp)
+}
+table(roundone_rec$user_id)
+write.csv(roundone_rec, file = "Verify/RoundOneRec.csv")
+roundone_rec_bkp = roundone_rec
+
+
+#Simulation - Score recommended questions and add the simulated data into user assessement activity
+Demo_user_list = c('8a54a7e8','9bffe329','fa2f968d','4ffee38a','56888f9f','67d028d2')
+simulated_qdata = question_data[question_data$masked_user_id == 'Dino',]
+#roundone_10 = rec_qlist[rec_qlist$user_id == 'Dino',]
+for (usr in Demo_user_list){ #usr = '8a54a7e8'
+  usr_qlist = roundone_rec[roundone_rec$user_id == usr, question_id] 
+  rec_qlist = roundone_rec[roundone_rec$user_id == usr,] %>% filter(question_id %in% sample(usr_qlist, 30))
+  #roundone_10 = rbind(roundone_10, rec_qlist)
+  rec_qdata = question_data[question_data$masked_user_id != usr & question_data$question_id %in% rec_qlist$question_id,]
+  rec_qdata_30 = rec_qdata[sample(nrow(rec_qdata), 30),]
+  rec_qdata_30$masked_user_id = usr
+  rec_qdata_30$points_earned = 10
+  rec_qdata_30$submission_utc_ts = '2020-04-15 08:43:15.000'
+  simulated_qdata = rbind(simulated_qdata, rec_qdata_30)
+}
+table(simulated_qdata$masked_user_id);table(roundone_rec$user_id)
+question_data = rbind(question_data, simulated_qdata)
+
+table(simulated_qdata$tag7)
+
+write.csv(simulated_qdata, file = "Verify/SimulationData.csv")
+
+
+#Simulation - Second round recommendataions
+Demo_user_list = c('8a54a7e8','9bffe329','fa2f968d','4ffee38a','56888f9f','67d028d2')
+CFrecommended$user_id = LoggedInUser
+roundtwo_rec = CFrecommended[CFrecommended$question_id == 000,]
+for (usr in Demo_user_list){ #usr = '8a54a7e8'
+  closestUser_Index <- rep(which(levels(ratingsMatrixTrain$user) == usr), each = uniqItems)
+  pred <- reco$predict(data_memory(closestUser_Index, 1:uniqItems), out_memory())
+  tempfinalReco <- data.table(question_id = unique(ratingsMatrixTrain$item), scores = pred)
+  question_data_sub_2$question_id = as.factor(question_data_sub_2$question_id)
+  CFrecommended = merge(tempfinalReco, question_data_sub_2, by.x = "question_id", by.y = "question_id", all.x = T) %>% select(question_id = question_id, PredScore = scores, 10:16) %>% arrange(-PredScore) %>% distinct()
+  temp = as.data.table(CFrecommended)
+  temp$user_id = usr
+  roundtwo_rec = rbind(roundtwo_rec, temp)
+}
+table(roundtwo_rec$user_id)
+write.csv(roundtwo_rec, file = "Verify/RoundTwoRec.csv")
+roundtwo_rec_bkp = roundtwo_rec
+
+
+
+
+#Simulation - Score recommended questions and add the simulated data into user assessement activity
+Demo_user_list = c('8a54a7e8','9bffe329','fa2f968d','4ffee38a','56888f9f','67d028d2')
+roundone_rec = rec_qdata_10[rec_qdata_10$masked_user_id == 'Dino',]
+roundone_10 = rec_qlist[rec_qlist$user_id == 'Dino',]
+for (usr in Demo_user_list){ #usr = '8a54a7e8'
+  usr_qlist = stregth_sample_recommendataions[stregth_sample_recommendataions$user_id == usr, question_id] 
+  rec_qlist = stregth_sample_recommendataions[stregth_sample_recommendataions$user_id == usr,] %>% filter(question_id %in% sample(usr_qlist, 10))
+  roundone_10 = rbind(roundone_10, rec_qlist)
+  rec_qdata = question_data[question_data$masked_user_id != usr & question_data$question_id %in% rec_qlist$question_id,]
+  rec_qdata_10 = rec_qdata[sample(nrow(rec_qdata), 10),]
+  rec_qdata_10$masked_user_id = usr
+  rec_qdata_10$points_earned = 10
+  rec_qdata_10$submission_utc_ts = '2020-04-15 08:43:15.000'
+  roundone_rec = rbind(roundone_rec, rec_qdata_10)
+}
+table(roundone_rec$masked_user_id);table(roundone_10$user_id)
+question_data = rbind(question_data, roundone_rec)
+
+
 rec_second = CFrecommended
 rec_second[rec_second$question_id %in% c(2856,10131,10303,12882),]
 round_two_strength = as.data.frame(question_data_sub %>% group_by(all_tags) %>%  summarise(score = sum(points_earned)) %>% filter(score >= 10))
@@ -244,11 +340,11 @@ str_bef_aft = rbind(round_one_strength,round_two_strength)
 write.csv(rec_bef_aft, file = "rec_bef_aft.csv")
 write.csv(str_bef_aft, file = "str_bef_aft.csv")
 #simulation_2 = 
-  unique(question_data[question_data$tag1 %in% c('tag-1972c7f2'),]$question_id)
-  unique(question_data[question_data$tag1 %in% c('tag-1ab2e7bb'),]$question_id)
-  rec_bef_aft[rec_bef_aft$tag1 == 'tag-1972c7f2',]
-  rec_bef_aft[rec_bef_aft$tag1 == 'tag-1ab2e7bb',]
-  question_data_sub[question_data_sub$tag1 %in% c('tag-1972c7f2','tag-1ab2e7bb'),]
+unique(question_data[question_data$tag1 %in% c('tag-1972c7f2'),]$question_id)
+unique(question_data[question_data$tag1 %in% c('tag-1ab2e7bb'),]$question_id)
+rec_bef_aft[rec_bef_aft$tag1 == 'tag-1972c7f2',]
+rec_bef_aft[rec_bef_aft$tag1 == 'tag-1ab2e7bb',]
+question_data_sub[question_data_sub$tag1 %in% c('tag-1972c7f2','tag-1ab2e7bb'),]
 
 #verification
 ratingsMatrixTrain[ratingsMatrixTrain$user == '019d90f6',]
