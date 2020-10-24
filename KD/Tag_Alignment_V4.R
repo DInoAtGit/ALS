@@ -72,8 +72,12 @@ question_data3.1 %>% group_by(question_id, country, tag7) %>% summarise(count = 
 question_data6 %>% group_by(question_id, country, tag1) %>% summarise(count = n()) %>% filter(count >1)
 question_data6[question_data6$question_id %in% c(3) & question_data6$country  %in% c('AO') & question_data6$tag1 == 'tag-13b3f31a',]
 
+question_data[question_data$question_id %in% c(3) & question_data$country  %in% c('AO') ,]
+question_data6[question_data6$question_id %in% c(3) & question_data6$country  %in% c('AO'),]
+
 #Tidy-up the names
 question_data6 = rename(question_data4, tag1 = question_tags.1, tag2 = question_tags.2, tag3 = question_tags.3, tag4 = question_tags.4)
+
 
 #Save enriched data
 write.csv(question_data6, "assessment_with_tags.csv")
@@ -135,6 +139,8 @@ stream_data3.1 = subset(stream_data3.1, select = -c(country_s))
 #Enrich main stream activity now using stream and country wise tag information
 stream_data4 = merge(stream_data, stream_data3.1[,c("deck_id","country","tag1","tag2","tag3","tag4","tag5","tag6","tag7")], by = c("deck_id","country"))
 
+
+stream_data4[stream_data4$deck_id %in% c('stream-de0d5c6a') & country == 'US', c(1:5,13:20)]
 
 #Verify
 head(stream_data, 4)

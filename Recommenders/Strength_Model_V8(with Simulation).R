@@ -79,8 +79,8 @@ dtm <- DocumentTermMatrix(corpus, control = list(weighting=weightBin))
 inspect (dtm)
 # dtm_ti <- weightTfIdf(dtm)
 # inspect(dtm_ti)
-dt <- as.data.table(as.matrix(dtm));dt[1:2,1:20]
-dt <- cbind(question_id = question_master$question_id, dt);dt[1:2,1:20]
+dt <- as.data.table(as.matrix(dtm));dt[1:20,1:10]
+dt <- cbind(question_id = question_master$question_id, dt);dt[1:10,1:10]
 #save(dt, file = "dt.RData")
 
 
@@ -112,7 +112,8 @@ dt <- cbind(question_id = question_master$question_id, dt);dt[1:2,1:20]
     #Confirmatory Checks - End
 
 # new user will input a role_id and some tags   (For existing user, get latest role_id from user master & pref_tag from best scores - Strength)
-LoggedInUser = '019d90f6'   #'6dcababc'
+Demo_user_list = c('8a54a7e8','9bffe329','fa2f968d','4ffee38a','56888f9f','67d028d2')
+LoggedInUser = '67d028d2'   #'019d90f6'
 role <- 1
 strength_tags <- c("electronics","computers", "audio", "video") %>% tolower  #CB Matrix
 topNQs = 100 #Number of related question data
@@ -123,10 +124,15 @@ if (!(LoggedInUser %in% question_data[question_data$masked_user_id == LoggedInUs
   question_data_sub = question_data[question_data$role_id == role,]
 }else {
   question_data_sub = question_data[question_data$masked_user_id == LoggedInUser,]
-  temp_tags = question_data_sub %>% group_by(all_tags) %>% 
-    summarise(score = sum(points_earned)) %>% filter(score >= 10) %>% head(10) %$% all_tags
+  if (nrow(question_data_sub[question_data_sub$no_of_trials== 1,]) >= 1){
+    temp_tags = question_data_sub[question_data_sub$no_of_trials == 1,] %>% group_by(all_tags) %>% 
+      summarise(score = sum(points_earned)) %>% arrange(-score)  %$% all_tags
+  } else {
+    temp_tags = question_data_sub %>% group_by(all_tags) %>% 
+      summarise(score = sum(points_earned)) %>% arrange(-score)  %$% all_tags
+  }
   temp_tags_1 =  data.frame(tags = unlist(strsplit(temp_tags, " ")))
-  strength_tags = unique(temp_tags_1[temp_tags_1$tags != 'NA',])
+  strength_tags = unique(temp_tags_1[temp_tags_1$tags != 'NA',]) %>% head(10)
 }
 
 
@@ -172,21 +178,21 @@ if (!(LoggedInUser %in% question_data[question_data$masked_user_id == LoggedInUs
 
 # CF using reco
 # Model evaluation on non-CB data
-set.seed(20000)
-question_data$user_action_d = as.Date(question_data$submission_utc_ts, "%Y-%m-%d")
-ratingsMatrixTrain <- question_data %>% select(user = masked_user_id, item = question_id, ratings = points_earned, 9:15,17)
-ratingsMatrixTrain$user <- as.factor(ratingsMatrixTrain$user)
-ratingsMatrixTrain$item <- as.factor(ratingsMatrixTrain$item)
-trainset <- ratingsMatrixTrain[ratingsMatrixTrain$user_action_d < '2019-11-10', ];nrow(trainset)
-testset <- ratingsMatrixTrain[!ratingsMatrixTrain$user_action_d < '2019-11-10', ];nrow(testset)
-train_data <- data_memory(user_index = trainset$user, item_index = trainset$item, rating = trainset$ratings, index1= TRUE)
-test_data <- data_memory(user_index = testset$user, item_index = testset$item, rating = testset$ratings, index1= TRUE)
-reco <- Reco()
-reco$train(train_data, opts = c(dim = 10, costp_12 = 0.1, costq_12 = 0.1, lrate = 0.08, niter = 50))
-test_set = data_memory(testset$user, testset$item)
-testset$pred <- reco$predict(test_set, out_memory())
-RMSE.CF <- sqrt(mean(testset$pred - testset$ratings)^2);RMSE.CF
-MAE.CF <- mean(abs(testset$pred - testset$ratings));MAE.CF
+# set.seed(20000)
+# question_data$user_action_d = as.Date(question_data$submission_utc_ts, "%Y-%m-%d")
+# ratingsMatrixTrain <- question_data %>% select(user = masked_user_id, item = question_id, ratings = points_earned, 9:15,17)
+# ratingsMatrixTrain$user <- as.factor(ratingsMatrixTrain$user)
+# ratingsMatrixTrain$item <- as.factor(ratingsMatrixTrain$item)
+# trainset <- ratingsMatrixTrain[ratingsMatrixTrain$user_action_d < '2019-11-10', ];nrow(trainset)
+# testset <- ratingsMatrixTrain[!ratingsMatrixTrain$user_action_d < '2019-11-10', ];nrow(testset)
+# train_data <- data_memory(user_index = trainset$user, item_index = trainset$item, rating = trainset$ratings, index1= TRUE)
+# test_data <- data_memory(user_index = testset$user, item_index = testset$item, rating = testset$ratings, index1= TRUE)
+# reco <- Reco()
+# reco$train(train_data, opts = c(dim = 10, costp_12 = 0.1, costq_12 = 0.1, lrate = 0.08, niter = 50))
+# test_set = data_memory(testset$user, testset$item)
+# testset$pred <- reco$predict(test_set, out_memory())
+# RMSE.CF <- sqrt(mean(testset$pred - testset$ratings)^2);RMSE.CF
+# MAE.CF <- mean(abs(testset$pred - testset$ratings));MAE.CF
 
 
 # Model evaluation on CB data
@@ -212,30 +218,27 @@ MAE.CF <- mean(abs(testset$pred - testset$ratings));MAE.CF
 
 
 
-if (!(LoggedInUser %in% question_data[question_data$masked_user_id == LoggedInUser,]$masked_user_id)) {
-  #predict for a highly active user, if user is new (cold start)
-  closestUser_Index <- rep(which(levels(ratingsMatrixTrain$user) == closestUserCF), each = uniqItems)
-  pred <- reco$predict(data_memory(closestUser_Index, 1:uniqItems), out_memory())
-  tempfinalReco <- data.table(question_id = unique(ratingsMatrixTrain$item), scores = pred)
-  question_data_sub_2$question_id = as.factor(question_data_sub_2$question_id)
-  CFrecommended = merge(tempfinalReco, question_data_sub_2, by.x = "question_id", by.y = "question_id", all.x = T) %>% select(question_id = question_id, PredScore = scores, 8,10:16,21) %>% arrange(-PredScore) %>% distinct()
-  head(CFrecommended,50)
-}else {
-  #Predict for existing user 
-  closestUser_Index <- rep(which(levels(ratingsMatrixTrain$user) == LoggedInUser), each = uniqItems)
-  pred <- reco$predict(data_memory(closestUser_Index, 1:uniqItems), out_memory())
-  tempfinalReco <- data.table(question_id = unique(ratingsMatrixTrain$item), scores = pred)
-  question_data_sub_2$question_id = as.factor(question_data_sub_2$question_id)
-  #CFrecommended = merge(tempfinalReco, question_data_sub_2, by.x = "question_id", by.y = "question_id", all.x = T) %>% select(question_id = question_id, PredScore = scores, 21,10:16,20) %>% arrange(-PredScore) %>% distinct()
-  CFrecommended = merge(tempfinalReco, question_data_sub_2, by.x = "question_id", by.y = "question_id", all.x = T) %>% select(question_id = question_id, PredScore = scores, 10:16) %>% arrange(-PredScore) %>% distinct()
-  head(CFrecommended,50);strength_tags
-}
+# if (!(LoggedInUser %in% question_data[question_data$masked_user_id == LoggedInUser,]$masked_user_id)) {
+#   #predict for a highly active user, if user is new (cold start)
+#   closestUser_Index <- rep(which(levels(ratingsMatrixTrain$user) == closestUserCF), each = uniqItems)
+#   pred <- reco$predict(data_memory(closestUser_Index, 1:uniqItems), out_memory())
+#   tempfinalReco <- data.table(question_id = unique(ratingsMatrixTrain$item), scores = pred)
+#   question_data_sub_2$question_id = as.factor(question_data_sub_2$question_id)
+#   CFrecommended = merge(tempfinalReco, question_data_sub_2, by.x = "question_id", by.y = "question_id", all.x = T) %>% select(question_id = question_id, PredScore = scores, 8,10:16,21) %>% arrange(-PredScore) %>% distinct()
+#   head(CFrecommended,50)
+# }else {
+#   #Predict for existing user 
+#   closestUser_Index <- rep(which(levels(ratingsMatrixTrain$user) == LoggedInUser), each = uniqItems)
+#   pred <- reco$predict(data_memory(closestUser_Index, 1:uniqItems), out_memory())
+#   tempfinalReco <- data.table(question_id = unique(ratingsMatrixTrain$item), scores = pred)
+#   question_data_sub_2$question_id = as.factor(question_data_sub_2$question_id)
+#   #CFrecommended = merge(tempfinalReco, question_data_sub_2, by.x = "question_id", by.y = "question_id", all.x = T) %>% select(question_id = question_id, PredScore = scores, 21,10:16,20) %>% arrange(-PredScore) %>% distinct()
+#   CFrecommended = merge(tempfinalReco, question_data_sub_2, by.x = "question_id", by.y = "question_id", all.x = T) %>% select(question_id = question_id, PredScore = scores, 10:16) %>% arrange(-PredScore) %>% distinct()
+#   head(CFrecommended,50);strength_tags
+# }
 
 #For Shiny GUI
-head(ratingsMatrixTrain, 100)
-table(ratingsMatrixTrain$ratings)
-ratingsMatrixTrain[ratingsMatrixTrain$ratings >= 4.140393,] %>% arrange(ratings)
-Demo_user_list = c('8a54a7e8','9bffe329','fa2f968d','4ffee38a','56888f9f','67d028d2')
+#Demo_user_list = c('8a54a7e8','9bffe329','fa2f968d','4ffee38a','56888f9f','67d028d2')
 closestUser_Index <- rep(which(levels(ratingsMatrixTrain$user) == LoggedInUser), each = uniqItems)
 pred <- reco$predict(data_memory(closestUser_Index, 1:uniqItems), out_memory())
 tempfinalReco <- data.table(question_id = unique(ratingsMatrixTrain$item), scores = pred)
@@ -245,38 +248,7 @@ temp = head(CFrecommended,50) %>% as.data.table
 temp$user_id = LoggedInUser
 temp2 = temp %>% select(user_id = user_id, question_id = question_id, score = PredScore)
 stregth_sample_recommendataions = rbind(stregth_sample_recommendataions, temp2)
-LoggedInUser = '9bffe329'
-table(stregth_sample_recommendataions$user_id)
-stregth_sample_recommendataions = stregth_sample_recommendataions[!stregth_sample_recommendataions$user_id == '56888f9f', ]
-#save(stregth_sample_recommendataions, file = "Demo/strength_recommen.Rds")
-saveRDS(stregth_sample_recommendataions, file = "Demo/strength_recommendations")
-
-
-head(ratingsMatrixTrain, 100)
-table(ratingsMatrixTrain$ratings)
-ratingsMatrixTrain[ratingsMatrixTrain$ratings >= 4.140393,] %>% arrange(ratings)
-Demo_user_list = c('8a54a7e8','9bffe329','fa2f968d','4ffee38a','56888f9f','67d028d2')
-stregth_sample_recommendataions = ratingsMatrixTrain[ratingsMatrixTrain$user == 'Dino',] %>% select(user_id = user, question_id = item, score = ratings)
-stregth_sample_tags = ratingsMatrixTrain[ratingsMatrixTrain$user == 'Dino',] %>% select(user_id = user, tag1 = tag1, tag2 = tag2, tag3= tag3, tag4 = tag4, tag5 = tag5, tag6 = tag6, tag7 = tag7)
-for (usr in Demo_user_list) {
-  closestUser_Index <- rep(which(levels(ratingsMatrixTrain$user) == usr), each = uniqItems)
-  pred <- reco$predict(data_memory(closestUser_Index, 1:uniqItems), out_memory())
-  tempfinalReco <- data.table(question_id = unique(ratingsMatrixTrain$item), scores = pred)
-  question_data_sub_2$question_id = as.factor(question_data_sub_2$question_id)
-  CFrecommended = merge(tempfinalReco, question_data_sub_2, by.x = "question_id", by.y = "question_id", all.x = T) %>% select(question_id = question_id, PredScore = scores, 10:16) %>% arrange(-PredScore) %>% distinct()
-  temp = head(CFrecommended,50) %>% as.data.table
-  temp$user_id = usr
-  temp2 = temp %>% select(user_id = user_id, question_id = question_id, score = PredScore)
-  temp3 = temp %>% select(user_id = user_id, tag1 = tag1, tag2 = tag2, tag3= tag3, tag4 = tag4, tag5 = tag5, tag6 = tag6, tag7 = tag7)
-  stregth_sample_recommendataions = rbind(stregth_sample_recommendataions, temp2)
-  stregth_sample_tags = rbind(stregth_sample_tags, temp3)
-}
-stregth_sample_tags = unique(stregth_sample_tags)
-LoggedInUser = '9bffe329'
-table(stregth_sample_recommendataions$user_id)
-stregth_sample_recommendataions = stregth_sample_recommendataions[!stregth_sample_recommendataions$user_id == '56888f9f', ]
-#save(stregth_sample_recommendataions, file = "Demo/strength_recommen.Rds")
-saveRDS(stregth_sample_recommendataions, file = "Demo/strength_recommendations")
+saveRDS(stregth_sample_recommendataions, file = "Demo/strength_recommendations_questions")
 
 
 
@@ -413,11 +385,6 @@ Sdt <- as.data.table(as.matrix(Sdtm));Sdt[1:2,1:20]
 Sdt <- cbind(deck_id = stream_master$deck_id, Sdt);Sdt[1:2,1:20]
 save(Sdt, file = "Sdt.RData")
 
-#Verify if cosine similarity returns right set of questions based on feature matrix
-S_sim_mat_cos <- crossprod_simple_triplet_matrix(t(Sdtm))/(sqrt(col_sums(t(Sdtm)^2) %*% t(col_sums(t(Sdtm)^2))))
-as.matrix(S_sim_mat_cos)[1:5, 1:10]
-
-
 #create a new binary matrix to filter out relevant Tags based on user-strength tags - Streams
 SnewMat <- data.table("USER STENGTHS" , matrix(0, nrow = 1, ncol = ncol(Sdt)-1)) ; SnewMat[1:2,1:10];Sdt[1:2,1:10]
 SnewMat[, which(colnames(Sdt) %in% strength_tags)] <- 1; SnewMat[1:2,1:10];Sdt[1:2,1:10]
@@ -431,7 +398,6 @@ S_choiceUniverse <- data.table(deck_id = Sdt$deck_id, dist = S_distances) %>% ar
 
 #Stream
 strength_stream_data = stream_data[stream_data$deck_id %in% S_choiceUniverse$deck_id,]
-
 stream_view_data[stream_view_data$masked_user_id == LoggedInUser,]
 strength_stream_data[strength_stream_data$masked_user_id == LoggedInUser,]
 
@@ -451,7 +417,12 @@ stream_view_dist = merge(stream_view_data, FS_choiceUniverse, by.x = "deck_id", 
   distinct()
 stream_view_dist$dist_rec = stream_view_dist$view_status + stream_view_dist$distance
 stream_recommend = stream_view_dist %>% select(deck_id = deck_id, rec_sclae = dist_rec, view_status = view_status) %>% arrange(rec_sclae) %>% head(topNQs)
-streams_tags = merge(stream_recommend, stream_master, by.x = "deck_id", by.y = "deck_id", all.x = T ) %>% 
-  select(deck_id = deck_id, rec_sclae = rec_sclae, view_status=view_status, tag1 = tag1, tag2=tag2,tag3=tag3,tag4=tag4,tag5=tag5,tag6=tag6,tag7=tag7 ) %>% arrange(rec_sclae)
-head(streams_tags,10)
+# streams_tags = merge(stream_recommend, stream_master, by.x = "deck_id", by.y = "deck_id", all.x = T ) %>% 
+#   select(deck_id = deck_id, rec_sclae = rec_sclae, view_status=view_status, tag1 = tag1, tag2=tag2,tag3=tag3,tag4=tag4,tag5=tag5,tag6=tag6,tag7=tag7 ) %>% arrange(rec_sclae)
+# head(streams_tags,10)
 
+#For Shiny UI
+stream_recommend$user_id = LoggedInUser
+temp3 = stream_recommend %>% select(user_id = user_id, deck_id = deck_id, score = rec_sclae) %>% head(50)
+stregth_sample_recommendataions_streams = rbind(stregth_sample_recommendataions_streams, temp3)
+saveRDS(stregth_sample_recommendataions_streams, file = "Demo/strength_recommendataions_streams")
