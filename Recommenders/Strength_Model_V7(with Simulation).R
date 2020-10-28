@@ -6,21 +6,31 @@ pacman::p_load(tidyverse,lubridate,date,stringi,data.table,dplyr,stringr,magritt
 #Set the directory
 setwd("C:\\Dino\\NUS\\CapStone\\DataSet")
 
-#Load data
-load("assessments_with_tags.RData")
-dim(question_data6)
-head(question_data6, 4)
+#Load data for full dataset - else skip to from line from 27 onwards
+  load("assessments_with_tags.RData")
+  dim(question_data6)
+  head(question_data6, 4)
+  
+  #Load data
+  load("streams_with_tags.RData")
+  dim(stream_data4)
+  head(stream_data4, 4)
+  
+  #Focus only GB Data
+  question_data = question_data6[question_data6$country == 'GB',]
+  stream_data = stream_data4[stream_data4$country == 'GB',]
+  rm(question_data6,stream_data4)
 
-#Load data
-load("streams_with_tags.RData")
-dim(stream_data4)
-head(stream_data4, 4)
+  save(question_data, file="assessment_GB.RData")
+  save(stream_data, file="streams_GB.RData")
 
-#Focus only GB Data
-question_data = question_data6[question_data6$country == 'GB',]
-stream_data = stream_data4[stream_data4$country == 'GB',]
-rm(question_data6,stream_data4)
+#Set the directory
+setwd("C:\\Dino\\Git\\ALS\\ALS\\DataSet")
 
+#Load GB data
+load("assessment_GB.RData")
+load("streams_GB.RData")
+  
 #Combine all tags for feature matrix
 question_data$all_tags = paste0(question_data$tag1," ",
                                 question_data$tag2," ",
